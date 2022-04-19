@@ -81,257 +81,80 @@ void permute_present_share(byte state[8][shares_N],int n)
 }
 
 
-void run_present_shares_prg(byte *in,byte*out,byte *key,int n,double *time,int nt)
+
+/**********************third order**********/
+
+void run_present_shares_third(byte *in,byte*out,byte *key,int n,double *time,int nt, int type)
 {
 
     int ni=n*(n-1)/2;
     byte stateshare[8][shares_N],keyshare[10][shares_N],state[8];
-    byte i=0;
+    byte i=0, key_in[10];
     int round;
-
-    #if TRNG==0
-        struct timespec begin, end;
-	#endif
-
     unsigned int begin1, end1;
     long sec,nsec;
     double temp=0.0;
-
-
-    //TRNG initialisation
-    rand_in();
-
-    for(i=0;i<8;i++)
-    state[i]=in[i];
+   /******************copying the key***************/
+   for(i=0;i<10;i++)
+   key_in[i]=key[i];
 
     //printf("initialisation of multiple PRGs\n");
-    init_mprg2(n,ni);
-
+    //init_mprg2(n,ni);
+   for(i=0;i<8;i++)
+    state[i]=in[i];
 
     //printf("pre-processing of tables\n");
     printf("Pre-computation of 160 tables for AES-128...\n");
 
-    #if TRNG==0
-    clock_gettime(CLOCK_REALTIME, &begin);
-    #endif // TRNG
+    
 
-    #if TRNG==1
-    reset_systick();
-    begin1 = SysTick->VAL; // Obtains the start time
-    #endif // TRNG
+    gen_t_forall_present_third(n,type); //Pre-processing table T1 for all rounds
+ 
 
-    gen_t_forall_present(n); //Pre-processing table T1 for all rounds
-
-    #if TRNG==0
-    clock_gettime(CLOCK_REALTIME, &end);
-    sec = end.tv_sec - begin.tv_sec;
-    nsec = end.tv_nsec - begin.tv_nsec;
-    temp = sec + nsec*1e-9;
-
-    time[0] = temp*UNIT;
-    #endif // TRNG
-
-    #if TRNG==1
-    end1 = SysTick->VAL; // Obtains the stop time
-    time[0] = (double)(begin1-end1); // Calculates the time taken
-    #endif // TRNG
-
-
-    printf("Done with pre-processing of tables\n");
-
-
-    for(i=0;i<8;i++)
-    {
-        //stateshare[i]=(byte*) malloc(n*sizeof(byte));
-        share_rnga(state[i],stateshare[i],n);
-    }
-
-    for(i=0;i<10;i++)
-    {
-        //keyshare[i]=(byte*) malloc(n*sizeof(byte));
-        share_rnga(key[i],keyshare[i],n);
-    }
+    printf("Done with pre-processing of tables\n");   
 
     printf("Online phase\n");
-
-    #if TRNG==0
-    clock_gettime(CLOCK_REALTIME, &begin);
-    #endif // TRNG
-
-    #if TRNG==1
-    reset_systick();
-    begin1 = SysTick->VAL; // Obtains the start time
-    #endif // TRNG
-
-
-    for(round=0;round<31;round++)
-    {
+      
+      for (int j=0;j<nt;j++)
+      {
+        for(i=0;i<10;i++)
+        key[i]=key_in[i];
+        
+        for(i=0;i<8;i++)
+       {
+        //stateshare[i]=(byte*) malloc(n*sizeof(byte));
+        share_rnga(state[i],stateshare[i],n);
+        
+        }
+     for(i=0;i<10;i++)
+        {
+        //keyshare[i]=(byte*) malloc(n*sizeof(byte));
+        share_rnga(key[i],keyshare[i],n);
+        
+        }
+      for(round=0;round<31;round++)
+       {
         addroundkey_present_share(stateshare,keyshare,n);
-        subbytestate_share_prg_present(stateshare,n,subbyte_htable_inc_mprg_present,round);
+
+        subbytestate_share_prg_present(stateshare,n,subbyte_htable_present_third,round,type);
         permute_present_share(stateshare,n);
 
         keyschedule_present(key,round);
 
         for(i=0;i<10;i++)
-        {
+           {
             share_rnga(key[i],keyshare[i],n); //Key share
 
+           }
+
         }
-
-    }
-    addroundkey_present_share(stateshare,keyshare,n);
-
-
-    #if TRNG==0
-    clock_gettime(CLOCK_REALTIME, &end);
-    sec = end.tv_sec - begin.tv_sec;
-    nsec = end.tv_nsec - begin.tv_nsec;
-    temp = sec + nsec*1e-9;
-
-    time[1] = temp*UNIT/nt;
-    #endif // TRNG
-
-    #if TRNG==1
-    end1 = SysTick->VAL; // Obtains the stop time
-    time[1] = ((double) (begin1-end1))/nt; // Calculates the time taken
-    #endif // TRNG
-
-
-    for(i=0;i<8;i++)
-        out[i]=decode(stateshare[i],n);
-
-    free_mprg2(n,ni);
-
-    rand_dein();
-
-
-}
-
-/**********************CRV method**********/
-
-
-void subbytestate_share_present_crv(byte stateshare[8][shares_N],int n)
-{
-  unsigned int i,j;
-  byte a[2][shares_N];
-
-  /*for(j=0;j<2;j++)
-        a[j]=(byte*) malloc(n*sizeof(byte));*/
-
-  for(i=0;i<8;i++)
-  {
-
-	for(j=0;j<n;j++)
-    {
-        a[0][j]=stateshare[i][j]>>4;
-        a[1][j]=stateshare[i][j] & 0xF;
-    }
-
-
-    crv_present_share(a[0],n);
-    crv_present_share(a[1],n);
-
-    for(j=0;j<n;j++)
-    {
-        stateshare[i][j]=a[0][j]<<4 | a[1][j];
-    }
-
-    //locality_refresh(stateshare[i],n);
-
-  }
-
-}
-
-
-
-
-double run_present_shares_crv(byte *in,byte*out,byte *key,int n,int nt)
-{
-
-    byte stateshare[8][shares_N],keyshare[10][shares_N],state[8];
-    byte i=0;
-    int round;
-
-    double time_crv = 0.0;
-
-    #if TRNG==0
-        struct timespec begin, end;
-	#endif
-
-    unsigned int begin1,end1;
-    long sec,nsec;
-    double temp=0.0;
-
-    //TRNG initialisation
-	rand_in();
-
-	printf("Shared execution of PRESENT using CRV....\n");
-
-	for(i=0;i<8;i++)
-        state[i]=in[i];
-
-    for(i=0;i<8;i++)
-    {
-        //stateshare[i]=(byte*) malloc(n*sizeof(byte));
-        share_rnga(state[i],stateshare[i],n);
-    }
-
-    for(i=0;i<10;i++)
-    {
-        //keyshare[i]=(byte*) malloc(n*sizeof(byte));
-        share_rnga(key[i],keyshare[i],n);
-    }
-
-    printf("Online phase\n");
-
-    #if TRNG==0
-    clock_gettime(CLOCK_REALTIME, &begin);
-    #endif // TRNG
-
-    #if TRNG==1
-    reset_systick();
-    begin1 = SysTick->VAL; // Obtains the start time
-    #endif // TRNG
-
-
-    for(round=0;round<31;round++)
-    {
         addroundkey_present_share(stateshare,keyshare,n);
-        subbytestate_share_present_crv(stateshare,n);
-        permute_present_share(stateshare,n);
-
-        keyschedule_present(key,round);
-
-        for(i=0;i<10;i++)
-        {
-            share_rnga(key[i],keyshare[i],n);
-
-        }
-
-    }
-    addroundkey_present_share(stateshare,keyshare,n);
-
-
-    #if TRNG==0
-    clock_gettime(CLOCK_REALTIME, &end);
-    sec = end.tv_sec - begin.tv_sec;
-    nsec = end.tv_nsec - begin.tv_nsec;
-    temp = sec + nsec*1e-9;
-
-    time_crv = temp*UNIT/nt;
-    #endif // TRNG
-
-    #if TRNG==1
-    end1 = SysTick->VAL; // Obtains the stop time
-    time_crv = ((double)(begin1-end1))/nt; // Calculates the time taken
-    #endif // TRNG
 
 
     for(i=0;i<8;i++)
         out[i]=decode(stateshare[i],n);
 
-    rand_dein();
+      }
 
-    return time_crv;
+
 }
-

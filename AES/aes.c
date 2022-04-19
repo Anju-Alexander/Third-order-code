@@ -101,15 +101,15 @@ void gensbox()
 {
   int i;
   byte x=0;
-  printf("byte sbox[256]={");
+  //printf("byte sbox[256]={");
   for(i=0;i<256;i++)
   {
-    if((i%8)==0) printf("\n");
-    printf("0x%02x",affine(inverse(x)));
+    //if((i%8)==0) printf("\n");
+    //printf("0x%02x",affine(inverse(x)));
     x++;
-    if(i<255) printf(",");
+    //if(i<255) printf(",");
   }
-  printf("};\n");
+  //printf("};\n");
 }
 
 byte subbyte(byte x)
@@ -143,11 +143,11 @@ void printstate(byte state[16])
   int j;
   for(i=0;i<4;i++)
   {
-    for(j=0;j<4;j++)
+    /*for(j=0;j<4;j++)
       printf("%02x ",state[i+4*j]);
-    printf("\n");
+    printf("\n");*/
   }
-  printf("\n");
+  //printf("\n");
 }
 
 void addroundkey(byte *state,byte *w,int round)

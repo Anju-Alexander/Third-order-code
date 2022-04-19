@@ -69,6 +69,7 @@ void gen_rand(byte *arr,int size){ //Populate arr with required number of random
     {
 			arr[j]=0;
 		}
+	
 
 		#if TRNG == 1
 
@@ -102,8 +103,8 @@ void gen_rand(byte *arr,int size){ //Populate arr with required number of random
 								c_out=0;
 						}
 
-						if(ind>15)
-								printf("Counter value will repeat..Re-initialise PRG seed and reset the counter");
+						//if(ind>15)
+						//		printf("Counter value will repeat..Re-initialise PRG seed and reset the counter");
 
 
 						for(i=0;i<req&&i<rem;i++,req--,rem--)

@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "PRESENT.C": "cpp",
+        "share.h": "c",
+        "present.h": "c",
+        "driver_functions.h": "c"
+    }
+}
